@@ -29,7 +29,7 @@ mod corner_radius;
 mod corner_radius_f32;
 pub mod image;
 mod margin;
-mod margin_f32;
+mod marginf;
 mod mesh;
 pub mod mutex;
 mod shadow;
@@ -52,7 +52,7 @@ pub use self::{
     corner_radius_f32::CornerRadiusF32,
     image::{ColorImage, FontImage, ImageData, ImageDelta},
     margin::Margin,
-    margin_f32::*,
+    marginf::Marginf,
     mesh::{Mesh, Mesh16, Vertex},
     shadow::Shadow,
     shapes::{

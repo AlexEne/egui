@@ -1,12 +1,12 @@
 use std::collections::BTreeSet;
 
+use egui::{Context, Modifiers, ScrollArea, Ui};
+
 use super::About;
 use crate::is_mobile;
 use crate::Demo;
 use crate::View;
-use egui::containers::menu;
-use egui::style::StyleModifier;
-use egui::{Context, Modifiers, ScrollArea, Ui};
+
 // ----------------------------------------------------------------------------
 
 struct DemoGroup {
@@ -65,6 +65,7 @@ impl Default for DemoGroups {
                 Box::<super::paint_bezier::PaintBezier>::default(),
                 Box::<super::code_editor::CodeEditor>::default(),
                 Box::<super::code_example::CodeExample>::default(),
+                Box::<super::context_menu::ContextMenus>::default(),
                 Box::<super::dancing_strings::DancingStrings>::default(),
                 Box::<super::drag_and_drop::DragAndDropDemo>::default(),
                 Box::<super::extra_viewport::ExtraViewport>::default(),
@@ -77,7 +78,6 @@ impl Default for DemoGroups {
                 Box::<super::multi_touch::MultiTouch>::default(),
                 Box::<super::painting::Painting>::default(),
                 Box::<super::panels::Panels>::default(),
-                Box::<super::popups::PopupsDemo>::default(),
                 Box::<super::scene::SceneDemo>::default(),
                 Box::<super::screenshot::Screenshot>::default(),
                 Box::<super::scrolling::Scrolling>::default(),
@@ -226,27 +226,29 @@ impl DemoWindows {
 
     fn mobile_top_bar(&mut self, ctx: &Context) {
         egui::TopBottomPanel::top("menu_bar").show(ctx, |ui| {
-            menu::Bar::new()
-                .config(menu::MenuConfig::new().style(StyleModifier::default()))
-                .ui(ui, |ui| {
-                    let font_size = 16.5;
+            egui::menu::bar(ui, |ui| {
+                let font_size = 16.5;
 
-                    ui.menu_button(egui::RichText::new("⏷ demos").size(font_size), |ui| {
-                        self.demo_list_ui(ui);
-                    });
-
-                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        use egui::special_emojis::GITHUB;
-                        ui.hyperlink_to(
-                            egui::RichText::new("🦋").size(font_size),
-                            "https://bsky.app/profile/ernerfeldt.bsky.social",
-                        );
-                        ui.hyperlink_to(
-                            egui::RichText::new(GITHUB).size(font_size),
-                            "https://github.com/emilk/egui",
-                        );
-                    });
+                ui.menu_button(egui::RichText::new("⏷ demos").size(font_size), |ui| {
+                    ui.set_style(ui.ctx().style()); // ignore the "menu" style set by `menu_button`.
+                    self.demo_list_ui(ui);
+                    if ui.ui_contains_pointer() && ui.input(|i| i.pointer.any_click()) {
+                        ui.close_menu();
+                    }
                 });
+
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    use egui::special_emojis::GITHUB;
+                    ui.hyperlink_to(
+                        egui::RichText::new("🦋").size(font_size),
+                        "https://bsky.app/profile/ernerfeldt.bsky.social",
+                    );
+                    ui.hyperlink_to(
+                        egui::RichText::new(GITHUB).size(font_size),
+                        "https://github.com/emilk/egui",
+                    );
+                });
+            });
         });
     }
 
@@ -279,7 +281,7 @@ impl DemoWindows {
             });
 
         egui::TopBottomPanel::top("menu_bar").show(ctx, |ui| {
-            menu::Bar::new().ui(ui, |ui| {
+            egui::menu::bar(ui, |ui| {
                 file_menu_button(ui);
             });
         });
@@ -342,6 +344,7 @@ fn file_menu_button(ui: &mut Ui) {
             .clicked()
         {
             ui.ctx().memory_mut(|mem| mem.reset_areas());
+            ui.close_menu();
         }
 
         if ui
@@ -353,6 +356,7 @@ fn file_menu_button(ui: &mut Ui) {
             .clicked()
         {
             ui.ctx().memory_mut(|mem| *mem = Default::default());
+            ui.close_menu();
         }
     });
 }

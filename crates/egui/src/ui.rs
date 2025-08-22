@@ -1,14 +1,11 @@
 #![warn(missing_docs)] // Let's keep `Ui` well-documented.
 #![allow(clippy::use_self)]
 
-use emath::GuiRounding as _;
-use epaint::mutex::RwLock;
 use std::{any::Any, hash::Hash, sync::Arc};
 
-use crate::close_tag::ClosableTag;
-use crate::containers::menu;
-#[cfg(debug_assertions)]
-use crate::Stroke;
+use emath::GuiRounding as _;
+use epaint::mutex::RwLock;
+
 use crate::{
     containers::{CollapsingHeader, CollapsingResponse, Frame},
     ecolor::Hsva,
@@ -16,6 +13,8 @@ use crate::{
     epaint::text::Fonts,
     grid,
     layout::{Direction, Layout},
+    menu,
+    menu::MenuState,
     pass_state,
     placer::Placer,
     pos2, style,
@@ -27,9 +26,11 @@ use crate::{
     },
     Align, Color32, Context, CursorIcon, DragAndDrop, Id, InnerResponse, InputState, LayerId,
     Memory, Order, Painter, PlatformOutput, Pos2, Rangef, Rect, Response, Rgba, RichText, Sense,
-    Style, TextStyle, TextWrapMode, UiBuilder, UiKind, UiStack, UiStackInfo, Vec2, WidgetRect,
-    WidgetText,
+    Style, TextStyle, TextWrapMode, UiBuilder, UiStack, UiStackInfo, Vec2, WidgetRect, WidgetText,
 };
+
+#[cfg(debug_assertions)]
+use crate::Stroke;
 // ----------------------------------------------------------------------------
 
 /// This is what you use to place widgets.
@@ -98,8 +99,7 @@ pub struct Ui {
     sizing_pass: bool,
 
     /// Indicates whether this Ui belongs to a Menu.
-    #[allow(deprecated)]
-    menu_state: Option<Arc<RwLock<crate::menu::MenuState>>>,
+    menu_state: Option<Arc<RwLock<MenuState>>>,
 
     /// The [`UiStack`] for this [`Ui`].
     stack: Arc<UiStack>,
@@ -1095,8 +1095,7 @@ impl Ui {
         // This is the inverse of Context::read_response. We prefer a response
         // based on last frame's widget rect since the one from this frame is Rect::NOTHING until
         // Ui::interact_bg is called or the Ui is dropped.
-        let mut response = self
-            .ctx()
+        self.ctx()
             .viewport(|viewport| {
                 viewport
                     .prev_pass
@@ -1108,11 +1107,7 @@ impl Ui {
             .map(|widget_rect| self.ctx().get_response(widget_rect))
             .expect(
                 "Since we always call Context::create_widget in Ui::new, this should never be None",
-            );
-        if self.should_close() {
-            response.set_close();
-        }
-        response
+            )
     }
 
     /// Update the [`WidgetRect`] created in [`Ui::new`] or [`Ui::new_child`] with the current
@@ -1126,7 +1121,7 @@ impl Ui {
             fs.used_ids.remove(&self.unique_id);
         });
         // This will update the WidgetRect that was first created in `Ui::new`.
-        let mut response = self.ctx().create_widget(
+        self.ctx().create_widget(
             WidgetRect {
                 id: self.unique_id,
                 layer_id: self.layer_id(),
@@ -1136,11 +1131,7 @@ impl Ui {
                 enabled: self.enabled,
             },
             false,
-        );
-        if self.should_close() {
-            response.set_close();
-        }
-        response
+        )
     }
 
     /// Interact with the background of this [`Ui`],
@@ -1173,104 +1164,6 @@ impl Ui {
     /// use [`Self::response`] instead.
     pub fn ui_contains_pointer(&self) -> bool {
         self.rect_contains_pointer(self.min_rect())
-    }
-
-    /// Find and close the first closable parent.
-    ///
-    /// Use [`UiBuilder::closable`] to make a [`Ui`] closable.
-    /// You can then use [`Ui::should_close`] to check if it should be closed.
-    ///
-    /// This is implemented for all egui containers, e.g. [`crate::Popup`], [`crate::Modal`],
-    /// [`crate::Area`], [`crate::Window`], [`crate::CollapsingHeader`], etc.
-    ///
-    /// What exactly happens when you close a container depends on the container implementation.
-    /// [`crate::Area`] e.g. will return true from it's [`Response::should_close`] method.
-    ///
-    /// If you want to close a specific kind of container, use [`Ui::close_kind`] instead.
-    ///
-    /// Also note that this won't bubble up across [`crate::Area`]s. If needed, you can check
-    /// `response.should_close()` and close the parent manually. ([`menu`] does this for example).
-    ///
-    /// See also:
-    /// - [`Ui::close_kind`]
-    /// - [`Ui::should_close`]
-    /// - [`Ui::will_parent_close`]
-    pub fn close(&self) {
-        let tag = self.stack.iter().find_map(|stack| {
-            stack
-                .info
-                .tags
-                .get_downcast::<ClosableTag>(ClosableTag::NAME)
-        });
-        if let Some(tag) = tag {
-            tag.set_close();
-        } else {
-            #[cfg(feature = "log")]
-            log::warn!("Called ui.close() on a Ui that has no closable parent.");
-        }
-    }
-
-    /// Find and close the first closable parent of a specific [`UiKind`].
-    ///
-    /// This is useful if you want to e.g. close a [`crate::Window`]. Since it contains a
-    /// `Collapsible`, [`Ui::close`] would close the `Collapsible` instead.
-    /// You can close the [`crate::Window`] by calling `ui.close_kind(UiKind::Window)`.
-    ///
-    /// See also:
-    /// - [`Ui::close`]
-    /// - [`Ui::should_close`]
-    /// - [`Ui::will_parent_close`]
-    pub fn close_kind(&self, ui_kind: UiKind) {
-        let tag = self
-            .stack
-            .iter()
-            .filter(|stack| stack.info.kind == Some(ui_kind))
-            .find_map(|stack| {
-                stack
-                    .info
-                    .tags
-                    .get_downcast::<ClosableTag>(ClosableTag::NAME)
-            });
-        if let Some(tag) = tag {
-            tag.set_close();
-        } else {
-            #[cfg(feature = "log")]
-            log::warn!("Called ui.close_kind({ui_kind:?}) on ui with no such closable parent.");
-        }
-    }
-
-    /// Was [`Ui::close`] called on this [`Ui`] or any of its children?
-    /// Only works if the [`Ui`] was created with [`UiBuilder::closable`].
-    ///
-    /// You can also check via this [`Ui`]'s [`Response::should_close`].
-    ///
-    /// See also:
-    /// - [`Ui::will_parent_close`]
-    /// - [`Ui::close`]
-    /// - [`Ui::close_kind`]
-    /// - [`Response::should_close`]
-    pub fn should_close(&self) -> bool {
-        self.stack
-            .info
-            .tags
-            .get_downcast(ClosableTag::NAME)
-            .is_some_and(|tag: &ClosableTag| tag.should_close())
-    }
-
-    /// Will this [`Ui`] or any of its parents close this frame?
-    ///
-    /// See also
-    /// - [`Ui::should_close`]
-    /// - [`Ui::close`]
-    /// - [`Ui::close_kind`]
-    pub fn will_parent_close(&self) -> bool {
-        self.stack.iter().any(|stack| {
-            stack
-                .info
-                .tags
-                .get_downcast::<ClosableTag>(ClosableTag::NAME)
-                .is_some_and(|tag| tag.should_close())
-        })
     }
 }
 
@@ -3007,16 +2900,14 @@ impl Ui {
     /// Close the menu we are in (including submenus), if any.
     ///
     /// See also: [`Self::menu_button`] and [`Response::context_menu`].
-    #[deprecated = "Use `ui.close()` or `ui.close_kind(UiKind::Menu)` instead"]
-    pub fn close_menu(&self) {
-        self.close_kind(UiKind::Menu);
+    pub fn close_menu(&mut self) {
+        if let Some(menu_state) = &mut self.menu_state {
+            menu_state.write().close();
+        }
+        self.menu_state = None;
     }
 
-    #[allow(deprecated)]
-    pub(crate) fn set_menu_state(
-        &mut self,
-        menu_state: Option<Arc<RwLock<crate::menu::MenuState>>>,
-    ) {
+    pub(crate) fn set_menu_state(&mut self, menu_state: Option<Arc<RwLock<MenuState>>>) {
         self.menu_state = menu_state;
     }
 
@@ -3030,25 +2921,24 @@ impl Ui {
     /// ui.menu_button("My menu", |ui| {
     ///     ui.menu_button("My sub-menu", |ui| {
     ///         if ui.button("Close the menu").clicked() {
-    ///             ui.close();
+    ///             ui.close_menu();
     ///         }
     ///     });
     /// });
     /// # });
     /// ```
     ///
-    /// See also: [`Self::close`] and [`Response::context_menu`].
+    /// See also: [`Self::close_menu`] and [`Response::context_menu`].
     pub fn menu_button<R>(
         &mut self,
         title: impl Into<WidgetText>,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<Option<R>> {
-        let (response, inner) = if menu::is_in_menu(self) {
-            menu::SubMenuButton::new(title).ui(self, add_contents)
+        if let Some(menu_state) = self.menu_state.clone() {
+            menu::submenu_button(self, menu_state, title, add_contents)
         } else {
-            menu::MenuButton::new(title).ui(self, add_contents)
-        };
-        InnerResponse::new(inner.map(|i| i.inner), response)
+            menu::menu_button(self, title, add_contents)
+        }
     }
 
     /// Create a menu button with an image that when clicked will show the given menu.
@@ -3062,7 +2952,7 @@ impl Ui {
     /// ui.menu_image_button(title, img, |ui| {
     ///     ui.menu_button("My sub-menu", |ui| {
     ///         if ui.button("Close the menu").clicked() {
-    ///             ui.close();
+    ///             ui.close_menu();
     ///         }
     ///     });
     /// });
@@ -3070,22 +2960,18 @@ impl Ui {
     /// ```
     ///
     ///
-    /// See also: [`Self::close`] and [`Response::context_menu`].
+    /// See also: [`Self::close_menu`] and [`Response::context_menu`].
     #[inline]
     pub fn menu_image_button<'a, R>(
         &mut self,
         image: impl Into<Image<'a>>,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<Option<R>> {
-        let (response, inner) = if menu::is_in_menu(self) {
-            menu::SubMenuButton::from_button(
-                Button::image(image).right_text(menu::SubMenuButton::RIGHT_ARROW),
-            )
-            .ui(self, add_contents)
+        if let Some(menu_state) = self.menu_state.clone() {
+            menu::submenu_button(self, menu_state, String::new(), add_contents)
         } else {
-            menu::MenuButton::from_button(Button::image(image)).ui(self, add_contents)
-        };
-        InnerResponse::new(inner.map(|i| i.inner), response)
+            menu::menu_custom_button(self, Button::image(image), add_contents)
+        }
     }
 
     /// Create a menu button with an image and a text that when clicked will show the given menu.
@@ -3100,14 +2986,14 @@ impl Ui {
     /// ui.menu_image_text_button(img, title, |ui| {
     ///     ui.menu_button("My sub-menu", |ui| {
     ///         if ui.button("Close the menu").clicked() {
-    ///             ui.close();
+    ///             ui.close_menu();
     ///         }
     ///     });
     /// });
     /// # });
     /// ```
     ///
-    /// See also: [`Self::close`] and [`Response::context_menu`].
+    /// See also: [`Self::close_menu`] and [`Response::context_menu`].
     #[inline]
     pub fn menu_image_text_button<'a, R>(
         &mut self,
@@ -3115,16 +3001,11 @@ impl Ui {
         title: impl Into<WidgetText>,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<Option<R>> {
-        let (response, inner) = if menu::is_in_menu(self) {
-            menu::SubMenuButton::from_button(
-                Button::image_and_text(image, title).right_text(menu::SubMenuButton::RIGHT_ARROW),
-            )
-            .ui(self, add_contents)
+        if let Some(menu_state) = self.menu_state.clone() {
+            menu::submenu_button(self, menu_state, title, add_contents)
         } else {
-            menu::MenuButton::from_button(Button::image_and_text(image, title))
-                .ui(self, add_contents)
-        };
-        InnerResponse::new(inner.map(|i| i.inner), response)
+            menu::menu_custom_button(self, Button::image_and_text(image, title), add_contents)
+        }
     }
 }
 

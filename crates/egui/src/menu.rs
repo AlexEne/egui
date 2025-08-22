@@ -1,4 +1,3 @@
-#![allow(deprecated)]
 //! Menu bar functionality (very basic so far).
 //!
 //! Usage:
@@ -147,7 +146,7 @@ pub fn menu_image_button<R>(
 /// Opens on hover.
 ///
 /// Returns `None` if the menu is not open.
-pub fn submenu_button<R>(
+pub(crate) fn submenu_button<R>(
     ui: &mut Ui,
     parent_state: Arc<RwLock<MenuState>>,
     title: impl Into<WidgetText>,
@@ -268,7 +267,7 @@ fn stationary_menu_button_impl<'c, R>(
 pub(crate) const CONTEXT_MENU_ID_STR: &str = "__egui::context_menu";
 
 /// Response to secondary clicks (right-clicks) by showing the given menu.
-pub fn context_menu(
+pub(crate) fn context_menu(
     response: &Response,
     add_contents: impl FnOnce(&mut Ui),
 ) -> Option<InnerResponse<()>> {
@@ -283,7 +282,7 @@ pub fn context_menu(
 }
 
 /// Returns `true` if the context menu is opened for this widget.
-pub fn context_menu_opened(response: &Response) -> bool {
+pub(crate) fn context_menu_opened(response: &Response) -> bool {
     let menu_id = Id::new(CONTEXT_MENU_ID_STR);
     let bar_state = BarState::load(&response.ctx, menu_id);
     bar_state.is_menu_open(response.id)
@@ -365,10 +364,7 @@ impl MenuRoot {
             let menu_state = self.menu_state.read();
 
             let escape_pressed = button.ctx.input(|i| i.key_pressed(Key::Escape));
-            if menu_state.response.is_close()
-                || escape_pressed
-                || inner_response.response.should_close()
-            {
+            if menu_state.response.is_close() || escape_pressed {
                 return (MenuResponse::Close, Some(inner_response));
             }
         }
@@ -671,9 +667,6 @@ impl MenuState {
     ) -> Option<R> {
         let (sub_response, response) = self.submenu(id).map(|sub| {
             let inner_response = menu_popup(ctx, parent_layer, sub, id, add_contents);
-            if inner_response.response.should_close() {
-                sub.write().close();
-            }
             (sub.read().response, inner_response.inner)
         })?;
         self.cascade_close_response(sub_response);

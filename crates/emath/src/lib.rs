@@ -34,7 +34,6 @@ mod ordered_float;
 mod pos2;
 mod range;
 mod rect;
-mod rect_align;
 mod rect_transform;
 mod rot2;
 pub mod smart_aim;
@@ -51,7 +50,6 @@ pub use self::{
     pos2::*,
     range::Rangef,
     rect::*,
-    rect_align::RectAlign,
     rect_transform::*,
     rot2::*,
     ts_transform::*,

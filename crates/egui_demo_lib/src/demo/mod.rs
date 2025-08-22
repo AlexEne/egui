@@ -7,6 +7,7 @@
 pub mod about;
 pub mod code_editor;
 pub mod code_example;
+pub mod context_menu;
 pub mod dancing_strings;
 pub mod demo_app_windows;
 pub mod drag_and_drop;
@@ -22,7 +23,6 @@ pub mod paint_bezier;
 pub mod painting;
 pub mod panels;
 pub mod password;
-mod popups;
 pub mod scene;
 pub mod screenshot;
 pub mod scrolling;

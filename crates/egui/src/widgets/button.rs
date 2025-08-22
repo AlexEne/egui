@@ -25,7 +25,7 @@ use crate::{
 pub struct Button<'a> {
     image: Option<Image<'a>>,
     text: Option<WidgetText>,
-    right_text: WidgetText,
+    shortcut_text: WidgetText,
     wrap_mode: Option<TextWrapMode>,
 
     /// None means default for interact
@@ -61,7 +61,7 @@ impl<'a> Button<'a> {
         Self {
             text,
             image,
-            right_text: Default::default(),
+            shortcut_text: Default::default(),
             wrap_mode: None,
             fill: None,
             stroke: None,
@@ -181,18 +181,9 @@ impl<'a> Button<'a> {
     /// Designed for menu buttons, for setting a keyboard shortcut text (e.g. `Ctrl+S`).
     ///
     /// The text can be created with [`crate::Context::format_shortcut`].
-    ///
-    /// See also [`Self::right_text`].
     #[inline]
     pub fn shortcut_text(mut self, shortcut_text: impl Into<WidgetText>) -> Self {
-        self.right_text = shortcut_text.into().weak();
-        self
-    }
-
-    /// Show some text on the right side of the button.
-    #[inline]
-    pub fn right_text(mut self, right_text: impl Into<WidgetText>) -> Self {
-        self.right_text = right_text.into();
+        self.shortcut_text = shortcut_text.into();
         self
     }
 
@@ -209,7 +200,7 @@ impl Widget for Button<'_> {
         let Button {
             text,
             image,
-            right_text,
+            shortcut_text,
             wrap_mode,
             fill,
             stroke,
@@ -248,16 +239,16 @@ impl Widget for Button<'_> {
             Vec2::ZERO
         };
 
-        let gap_before_right_text = ui.spacing().item_spacing.x;
+        let gap_before_shortcut_text = ui.spacing().item_spacing.x;
 
         let mut text_wrap_width = ui.available_width() - 2.0 * button_padding.x;
         if image.is_some() {
             text_wrap_width -= image_size.x + ui.spacing().icon_spacing;
         }
 
-        // Note: we don't wrap the right text
-        let right_galley = (!right_text.is_empty()).then(|| {
-            right_text.into_galley(
+        // Note: we don't wrap the shortcut text
+        let shortcut_galley = (!shortcut_text.is_empty()).then(|| {
+            shortcut_text.into_galley(
                 ui,
                 Some(TextWrapMode::Extend),
                 f32::INFINITY,
@@ -265,9 +256,9 @@ impl Widget for Button<'_> {
             )
         });
 
-        if let Some(right_galley) = &right_galley {
-            // Leave space for the right text:
-            text_wrap_width -= gap_before_right_text + right_galley.size().x;
+        if let Some(shortcut_galley) = &shortcut_galley {
+            // Leave space for the shortcut text:
+            text_wrap_width -= gap_before_shortcut_text + shortcut_galley.size().x;
         }
 
         let galley =
@@ -285,9 +276,9 @@ impl Widget for Button<'_> {
             desired_size.x += galley.size().x;
             desired_size.y = desired_size.y.max(galley.size().y);
         }
-        if let Some(right_galley) = &right_galley {
-            desired_size.x += gap_before_right_text + right_galley.size().x;
-            desired_size.y = desired_size.y.max(right_galley.size().y);
+        if let Some(shortcut_galley) = &shortcut_galley {
+            desired_size.x += gap_before_shortcut_text + shortcut_galley.size().x;
+            desired_size.y = desired_size.y.max(shortcut_galley.size().y);
         }
         desired_size += 2.0 * button_padding;
         if !small {
@@ -344,7 +335,7 @@ impl Widget for Button<'_> {
                     .layout()
                     .align_size_within_rect(image_size, rect.shrink2(button_padding))
                     .min;
-                if galley.is_some() || right_galley.is_some() {
+                if galley.is_some() || shortcut_galley.is_some() {
                     image_pos.x = cursor_x;
                 }
                 let image_rect = Rect::from_min_size(image_pos, image_size);
@@ -378,25 +369,27 @@ impl Widget for Button<'_> {
                     .layout()
                     .align_size_within_rect(galley.size(), rect.shrink2(button_padding))
                     .min;
-                if image.is_some() || right_galley.is_some() {
+                if image.is_some() || shortcut_galley.is_some() {
                     text_pos.x = cursor_x;
                 }
                 ui.painter().galley(text_pos, galley, visuals.text_color());
             }
 
-            if let Some(right_galley) = right_galley {
+            if let Some(shortcut_galley) = shortcut_galley {
                 // Always align to the right
                 let layout = if ui.layout().is_horizontal() {
                     ui.layout().with_main_align(Align::Max)
                 } else {
                     ui.layout().with_cross_align(Align::Max)
                 };
-                let right_text_pos = layout
-                    .align_size_within_rect(right_galley.size(), rect.shrink2(button_padding))
+                let shortcut_text_pos = layout
+                    .align_size_within_rect(shortcut_galley.size(), rect.shrink2(button_padding))
                     .min;
-
-                ui.painter()
-                    .galley(right_text_pos, right_galley, visuals.text_color());
+                ui.painter().galley(
+                    shortcut_text_pos,
+                    shortcut_galley,
+                    ui.visuals().weak_text_color(),
+                );
             }
         }
 

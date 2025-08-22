@@ -539,9 +539,6 @@ pub struct WidgetInfo {
 
     /// Selected range of characters in [`Self::current_text_value`].
     pub text_selection: Option<std::ops::RangeInclusive<usize>>,
-
-    /// The hint text for text edit fields.
-    pub hint_text: Option<String>,
 }
 
 impl std::fmt::Debug for WidgetInfo {
@@ -555,7 +552,6 @@ impl std::fmt::Debug for WidgetInfo {
             selected,
             value,
             text_selection,
-            hint_text,
         } = self;
 
         let mut s = f.debug_struct("WidgetInfo");
@@ -584,9 +580,6 @@ impl std::fmt::Debug for WidgetInfo {
         if let Some(text_selection) = text_selection {
             s.field("text_selection", text_selection);
         }
-        if let Some(hint_text) = hint_text {
-            s.field("hint_text", hint_text);
-        }
 
         s.finish()
     }
@@ -603,7 +596,6 @@ impl WidgetInfo {
             selected: None,
             value: None,
             text_selection: None,
-            hint_text: None,
         }
     }
 
@@ -651,11 +643,9 @@ impl WidgetInfo {
         enabled: bool,
         prev_text_value: impl ToString,
         text_value: impl ToString,
-        hint_text: impl ToString,
     ) -> Self {
         let text_value = text_value.to_string();
         let prev_text_value = prev_text_value.to_string();
-        let hint_text = hint_text.to_string();
         let prev_text_value = if text_value == prev_text_value {
             None
         } else {
@@ -665,7 +655,6 @@ impl WidgetInfo {
             enabled,
             current_text_value: Some(text_value),
             prev_text_value,
-            hint_text: Some(hint_text),
             ..Self::new(WidgetType::TextEdit)
         }
     }
@@ -695,7 +684,6 @@ impl WidgetInfo {
             selected,
             value,
             text_selection: _,
-            hint_text: _,
         } = self;
 
         // TODO(emilk): localization

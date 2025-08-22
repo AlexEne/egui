@@ -253,7 +253,6 @@ web-sys = { workspace = true, features = [
   "ResizeObserverEntry",
   "ResizeObserverOptions",
   "ResizeObserverSize",
-  "ShadowRoot",
   "Storage",
   "Touch",
   "TouchEvent",

@@ -96,9 +96,7 @@ impl crate::View for Modals {
                             *save_modal_open = true;
                         }
                         if ui.button("Cancel").clicked() {
-                            // You can call `ui.close()` to close the modal.
-                            // (This causes the current modals `should_close` to return true)
-                            ui.close();
+                            *user_modal_open = false;
                         }
                     },
                 );
@@ -125,7 +123,7 @@ impl crate::View for Modals {
                         }
 
                         if ui.button("No Thanks").clicked() {
-                            ui.close();
+                            *save_modal_open = false;
                         }
                     },
                 );

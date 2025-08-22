@@ -53,9 +53,6 @@ pub enum UiKind {
 
     /// An [`crate::Area`] that is not of any other kind.
     GenericArea,
-
-    /// A collapsible container, e.g. a [`crate::CollapsingHeader`].
-    Collapsible,
 }
 
 impl UiKind {
@@ -84,7 +81,6 @@ impl UiKind {
             | Self::Frame
             | Self::ScrollArea
             | Self::Resize
-            | Self::Collapsible
             | Self::TableCell => false,
 
             Self::Window
