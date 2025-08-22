@@ -602,7 +602,8 @@ impl SubMenu {
     fn new(parent_state: Arc<RwLock<MenuState>>, text: impl Into<WidgetText>) -> Self {
         let index = parent_state.write().next_entry_index();
         Self {
-            button: SubMenuButton::new(text, "⏵", index),
+            // button: SubMenuButton::new(text, "⏵", index),
+            button: SubMenuButton::new(text, ">", index),
             parent_state,
         }
     }
