@@ -65,7 +65,7 @@ pub fn hit_test(
         .filter(|layer| layer.order.allow_interaction())
         .flat_map(|&layer_id| widgets.get_layer(layer_id))
         .filter(|&w| {
-            if w.interact_rect.is_negative() {
+            if w.interact_rect.is_negative() || w.interact_rect.any_nan() {
                 return false;
             }
 
@@ -91,6 +91,8 @@ pub fn hit_test(
         }
     }
 
+    close.retain(|rect| !rect.interact_rect.any_nan()); // Protect against bad input and transforms
+    
     // When using layer transforms it is common to stack layers close to each other.
     // For instance, you may have a resize-separator on a panel, with two
     // transform-layers on either side.
