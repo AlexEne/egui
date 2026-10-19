@@ -92,7 +92,7 @@ pub fn hit_test(
     }
 
     close.retain(|rect| !rect.interact_rect.any_nan()); // Protect against bad input and transforms
-    
+
     // When using layer transforms it is common to stack layers close to each other.
     // For instance, you may have a resize-separator on a panel, with two
     // transform-layers on either side.
@@ -356,44 +356,48 @@ fn hit_test_on_close(close: &[WidgetRect], pos: Pos2) -> WidgetHits {
 
         (Some(hit_click), Some(hit_drag)) => {
             // We have a perfect hit on both click and drag. Which is the topmost?
-            let click_idx = close.iter().position(|w| *w == hit_click).unwrap();
-            let drag_idx = close.iter().position(|w| *w == hit_drag).unwrap();
+            let click_idx = close.iter().position(|w| *w == hit_click);
+            let drag_idx = close.iter().position(|w| *w == hit_drag);
 
-            let click_is_on_top_of_drag = drag_idx < click_idx;
-            if click_is_on_top_of_drag {
-                if hit_click.sense.senses_drag() {
-                    // The top thing senses both clicks and drags.
-                    WidgetHits {
-                        click: Some(hit_click),
-                        drag: Some(hit_click),
-                        ..Default::default()
-                    }
-                } else {
-                    // They are interested in different things,
-                    // and click is on top. Report both hits,
-                    // e.g. the top Button and the ScrollArea behind it.
-                    WidgetHits {
-                        click: Some(hit_click),
-                        drag: Some(hit_drag),
-                        ..Default::default()
-                    }
-                }
+            if click_idx == None || drag_idx == None {
+                WidgetHits::default()
             } else {
-                if hit_drag.sense.senses_click() {
-                    // The top thing senses both clicks and drags.
-                    WidgetHits {
-                        click: Some(hit_drag),
-                        drag: Some(hit_drag),
-                        ..Default::default()
+                let click_is_on_top_of_drag = drag_idx < click_idx;
+                if click_is_on_top_of_drag {
+                    if hit_click.sense.senses_drag() {
+                        // The top thing senses both clicks and drags.
+                        WidgetHits {
+                            click: Some(hit_click),
+                            drag: Some(hit_click),
+                            ..Default::default()
+                        }
+                    } else {
+                        // They are interested in different things,
+                        // and click is on top. Report both hits,
+                        // e.g. the top Button and the ScrollArea behind it.
+                        WidgetHits {
+                            click: Some(hit_click),
+                            drag: Some(hit_drag),
+                            ..Default::default()
+                        }
                     }
                 } else {
-                    // The top things senses only drags,
-                    // so we ignore the click-widget, because it would be confusing
-                    // if clicking a drag-widget would actually click something else below it.
-                    WidgetHits {
-                        click: None,
-                        drag: Some(hit_drag),
-                        ..Default::default()
+                    if hit_drag.sense.senses_click() {
+                        // The top thing senses both clicks and drags.
+                        WidgetHits {
+                            click: Some(hit_drag),
+                            drag: Some(hit_drag),
+                            ..Default::default()
+                        }
+                    } else {
+                        // The top things senses only drags,
+                        // so we ignore the click-widget, because it would be confusing
+                        // if clicking a drag-widget would actually click something else below it.
+                        WidgetHits {
+                            click: None,
+                            drag: Some(hit_drag),
+                            ..Default::default()
+                        }
                     }
                 }
             }
